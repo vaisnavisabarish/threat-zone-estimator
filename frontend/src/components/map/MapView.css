@@ -1,3 +1,12 @@
+/* Night mode affects ONLY the basemap tiles */
+.leaflet-tile-pane.night-map {
+  filter:
+    invert(100%)
+    hue-rotate(180deg)
+    brightness(60%)
+    contrast(120%)
+    saturate(75%);
+}
 .map-wrapper{position:relative;width:100%;height:100%;min-height:560px;overflow:hidden;border-radius:12px;background:#020617;isolation:isolate}
 .threat-map{width:100%;height:100%;min-height:560px}
 .threat-map .leaflet-control-zoom{margin-top:78px;margin-left:14px;border:1px solid rgba(148,163,184,.28);box-shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -25,3 +34,38 @@
 .map-popup{min-width:145px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.popup-kicker{color:#64748b;font-size:9px;letter-spacing:.12em;margin-bottom:5px}.popup-severity{font-weight:900;font-size:12px;margin-bottom:3px}.popup-severity.critical{color:#ef4444}.popup-severity.high{color:#f97316}.popup-severity.moderate{color:#ca8a04}.popup-value{font-weight:900;font-size:16px;color:#0f172a}.popup-value span{font-size:10px;font-weight:600}.popup-muted{color:#64748b;font-size:9px;margin-top:4px}
 @keyframes radarExpand{0%{transform:scale(.55);opacity:.75}100%{transform:scale(1.7);opacity:0}}@keyframes mapPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
 @media(max-width:900px){.map-wrapper,.threat-map{min-height:500px}.map-hud-top-right{top:78px}.map-legend{width:205px}.wind-label{bottom:14px;right:10px;font-size:8px}}
+.map-theme-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 9px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+
+  background: rgba(10, 15, 25, 0.88);
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.map-theme-toggle:hover {
+  background: rgba(20, 28, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}

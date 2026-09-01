@@ -9,7 +9,7 @@ import {
   Polygon,
   useMap,
 } from 'react-leaflet';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapView.css';
@@ -94,7 +94,23 @@ function ScaleControl() {
   }, [map]);
   return null;
 }
+function MapTheme({ darkMode }) {
+  const map = useMap();
 
+  useEffect(() => {
+    const tilePane = map.getPane('tilePane');
+
+    if (!tilePane) return;
+
+    if (darkMode) {
+      tilePane.classList.add('night-map');
+    } else {
+      tilePane.classList.remove('night-map');
+    }
+  }, [map, darkMode]);
+
+  return null;
+}
 function FacilityOverlay({ position, configuration, diameter, height }) {
   const icon = useMemo(() => L.divIcon({
     className: 'facility-marker-wrapper',
@@ -218,6 +234,17 @@ export default function MapView({
   tankHeight = 15,
   severityZones = [],
 }) {
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('thermavector-map-theme') === 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      'thermavector-map-theme',
+      darkMode ? 'dark' : 'light'
+    );
+  }, [darkMode]);
+
   const isBlast = hazardType === 'blast' || hazardType === 'blast_overpressure';
   const unit = isBlast ? 'kPa' : 'kW/m²';
   const downwind = (Number(windDirection) + 180) % 360;
@@ -225,9 +252,23 @@ export default function MapView({
 
   return (
     <div className="map-wrapper">
-      <MapContainer center={center} zoom={zoom} scrollWheelZoom zoomControl className="threat-map">
-        <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <MapContainer
+  center={center}
+  zoom={zoom}
+  scrollWheelZoom
+  zoomControl
+  className="threat-map"
+>
+  <TileLayer
+    attribution="&copy; OpenStreetMap contributors"
+    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  />
+
+  <MapTheme darkMode={darkMode} />
+
+  <ScaleControl />
         <ScaleControl />
+
         <MapAutoFit hazardGeoJson={hazardGeoJson} center={center} />
 
         {[100, 250, 500].map((r) => (
@@ -261,8 +302,19 @@ export default function MapView({
           />
         )}
       </MapContainer>
-
+      <button
+      type="button"
+      className="map-theme-toggle"
+      onClick={() => setDarkMode((value) => !value)}
+      title={darkMode ? 'Switch to light map' : 'Switch to night map'}
+      >
+      <span className="theme-icon">
+      {darkMode ? '☀' : '☾'}
+      </span>
+      <span>{darkMode ? 'DAY MAP' : 'NIGHT MAP'}</span>
+      </button>
       <div className="map-hud map-hud-top-left">
+
         <div className="hud-status"><span className="hud-dot"></span> LIVE MODEL OUTPUT</div>
         <div className="hud-title">EXPOSURE FIELD</div>
         <div className="hud-subtitle">25 m × 25 m computational grid</div>
