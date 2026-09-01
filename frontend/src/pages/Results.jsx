@@ -1,3 +1,4 @@
+import MapView from '../components/map/MapView';
 export default function Results() {
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col">
@@ -12,20 +13,11 @@ export default function Results() {
         <div className="flex-[3] bg-slate-900 border border-slate-800 rounded-lg relative overflow-hidden flex items-center justify-center">
           
           {/* This is a placeholder for your teammate's actual <MapView /> */}
-          <div className="text-slate-600 text-center">
-            <span className="text-4xl block mb-2">🗺️</span>
-            <p className="font-mono text-sm">&lt;MapView data=&#123;hazardData&#125; /&gt;</p>
-            <p className="text-xs mt-2">Mapbox / Leaflet instance renders here</p>
-          </div>
+        <MapView />
 
           {/* Floating Legend Overlay */}
-          <div className="absolute bottom-4 left-4 bg-slate-950/80 backdrop-blur border border-slate-800 p-3 rounded text-xs space-y-2">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500/80 border border-red-500"></div><span>Critical</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-orange-500/80 border border-orange-500"></div><span>High</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-500/80 border border-yellow-500"></div><span>Moderate</span></div>
-          </div>
+        
         </div>
-
         {/* SIDE PANELS - Your territory */}
         <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2">
           
