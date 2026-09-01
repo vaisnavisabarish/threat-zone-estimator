@@ -1,0 +1,41 @@
+{
+  "scenario_id": "S02",
+  "name": "Multiple Tanks - Thermal Radiation",
+  "description": "Two-tank configuration used to compare facility geometry effects",
+  "facility": {
+    "configuration": "multi_tank",
+    "location": {
+      "latitude": 13.0827,
+      "longitude": 80.2707
+    },
+    "tanks": [
+      {
+        "id": "T1",
+        "diameter_m": 10,
+        "height_m": 12,
+        "volume_m3": 942
+      },
+      {
+        "id": "T2",
+        "diameter_m": 10,
+        "height_m": 12,
+        "volume_m3": 942
+      }
+    ],
+    "tank_separation_m": 30
+  },
+  "environment": {
+    "wind_speed_mps": 8,
+    "wind_direction_deg": 90,
+    "temperature_c": 30
+  },
+  "hazard": {
+    "type": "thermal_radiation"
+  },
+  "expected_behavior": [
+    "A thermal radiation hazard field is generated",
+    "The resulting zone geometry differs from the single-tank configuration",
+    "The two tank locations are represented spatially",
+    "Wind direction influences the resulting hazard geometry"
+  ]
+}

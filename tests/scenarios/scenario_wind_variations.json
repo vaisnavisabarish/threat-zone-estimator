@@ -1,0 +1,46 @@
+{
+  "scenario_id": "S03",
+  "name": "Wind Direction Variation",
+  "description": "Tests whether hazard geometry responds to changing wind direction",
+  "base_facility": {
+    "configuration": "single_tank",
+    "location": {
+      "latitude": 13.0827,
+      "longitude": 80.2707
+    },
+    "tanks": [
+      {
+        "id": "T1",
+        "diameter_m": 20,
+        "height_m": 15,
+        "volume_m3": 4712
+      }
+    ]
+  },
+  "wind_tests": [
+    {
+      "wind_speed_mps": 8,
+      "wind_direction_deg": 0
+    },
+    {
+      "wind_speed_mps": 8,
+      "wind_direction_deg": 90
+    },
+    {
+      "wind_speed_mps": 8,
+      "wind_direction_deg": 180
+    },
+    {
+      "wind_speed_mps": 8,
+      "wind_direction_deg": 270
+    }
+  ],
+  "hazard": {
+    "type": "thermal_radiation"
+  },
+  "expected_behavior": [
+    "Changing wind direction changes the orientation of the hazard field",
+    "The hazard field should not remain identical for all four wind directions",
+    "The downwind direction should correspond to the model's wind convention"
+  ]
+}
