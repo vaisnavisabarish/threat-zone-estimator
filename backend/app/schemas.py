@@ -19,7 +19,8 @@ class EstimateRequest(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     configuration: FacilityConfiguration = FacilityConfiguration.single
     hazard_type: HazardType
-    wind_speed_m_s: float = Field(ge=0, le=75)
+    # Demo-safe validation ceiling. Internally the model uses SI units (m/s).
+    wind_speed_m_s: float = Field(ge=0, le=100)
     wind_direction_deg: float = Field(ge=0, lt=360)
     tank_diameter_m: float = Field(default=20, gt=0, le=200)
     tank_height_m: float = Field(default=15, gt=0, le=200)

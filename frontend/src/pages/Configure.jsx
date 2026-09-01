@@ -121,11 +121,25 @@ export default function Configure() {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || 'Threat estimation failed.'
-        );
-      }
+     if (!response.ok) {
+  const detail = Array.isArray(data.detail)
+    ? data.detail
+        .map((item) => {
+          const field = Array.isArray(item.loc)
+            ? item.loc.slice(1).join('.')
+            : 'input';
+
+          return `${field}: ${item.msg}`;
+        })
+        .join(' • ')
+    : typeof data.detail === 'object'
+      ? JSON.stringify(data.detail)
+      : data.detail;
+
+  throw new Error(
+    detail || `Threat estimation failed (${response.status}).`
+  );
+}
 
       console.log('ESTIMATE RESPONSE:', data);
 
@@ -192,9 +206,10 @@ export default function Configure() {
                     className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-red-500 transition-colors"
                   >
                     <option value="single_tank">Single Tank</option>
-                    <option value="multiple_tanks" disabled>
-                      Multiple Tanks (Pro Version)
+                    <option value="dual_tank">
+                    Dual Tank Array
                     </option>
+                   
                   </select>
                 </div>
 
