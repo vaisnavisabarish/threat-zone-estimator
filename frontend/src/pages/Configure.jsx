@@ -53,107 +53,84 @@ export default function Configure() {
   };
 
   const handleCalculate = async () => {
-    // Validation
-    if (scenario.facility.diameter_m <= 0) {
-      return setError("⚠ Diameter must be greater than 0.");
+    if (scenario.facility.diameter_m <= 0) return setError('⚠ Diameter must be greater than 0.');
+    if (scenario.facility.height_m <= 0) return setError('⚠ Height must be greater than 0.');
+    if (scenario.environment.wind_speed_mps < 0 || scenario.environment.wind_speed_mps > 100) {
+      return setError('⚠ Wind speed must be between 0 and 100 m/s.');
     }
-
-    if (scenario.facility.height_m <= 0) {
-      return setError("⚠ Height must be greater than 0.");
+    if (scenario.environment.wind_direction_deg < 0 || scenario.environment.wind_direction_deg >= 360) {
+      return setError('⚠ Wind direction must be between 0° and 359.9°.');
     }
-
-    if (scenario.environment.wind_speed_mps < 0) {
-      return setError("⚠ Wind speed cannot be negative.");
+    if (scenario.facility.latitude < -90 || scenario.facility.latitude > 90) {
+      return setError('⚠ Latitude must be between -90° and 90°.');
     }
-
-    if (
-      scenario.facility.latitude < -90 ||
-      scenario.facility.latitude > 90
-    ) {
-      return setError("⚠ Latitude must be between -90° and 90°.");
-    }
-
-    if (
-      scenario.facility.longitude < -180 ||
-      scenario.facility.longitude > 180
-    ) {
-      return setError("⚠ Longitude must be between -180° and 180°.");
+    if (scenario.facility.longitude < -180 || scenario.facility.longitude > 180) {
+      return setError('⚠ Longitude must be between -180° and 180°.');
     }
 
     setIsCalculating(true);
     setError(null);
 
-    // Convert the frontend scenario shape into the backend API contract.
-    const payload = {
+    const buildPayload = (configuration) => ({
       latitude: scenario.facility.latitude,
       longitude: scenario.facility.longitude,
-
-      configuration:
-        scenario.facility.configuration === 'single_tank'
-          ? 'single'
-          : 'dual',
-
-      hazard_type:
-        scenario.hazard.type === 'thermal_radiation'
-          ? 'thermal'
-          : 'blast',
-
+      configuration,
+      hazard_type: scenario.hazard.type === 'thermal_radiation' ? 'thermal' : 'blast',
       wind_speed_m_s: scenario.environment.wind_speed_mps,
       wind_direction_deg: scenario.environment.wind_direction_deg,
-
       tank_diameter_m: scenario.facility.diameter_m,
       tank_height_m: scenario.facility.height_m,
-
       fuel_mass_kg: 50000,
+    });
+
+    const readableError = (data, status) => {
+      if (Array.isArray(data?.detail)) {
+        return data.detail.map((item) => {
+          const field = Array.isArray(item.loc) ? item.loc.slice(1).join('.') : 'input';
+          return `${field}: ${item.msg}`;
+        }).join(' • ');
+      }
+      if (typeof data?.detail === 'object' && data.detail !== null) return JSON.stringify(data.detail);
+      return data?.detail || `Threat estimation failed (${status}).`;
+    };
+
+    const runEstimate = async (configuration) => {
+      const response = await fetch('http://127.0.0.1:8000/api/v1/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload(configuration)),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(readableError(data, response.status));
+      return data;
     };
 
     try {
-      const response = await fetch(
-        'http://127.0.0.1:8000/api/v1/estimate',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      // Compute both facility configurations under identical conditions.
+      // The selected configuration remains the primary result; the second
+      // result powers the side-by-side engineering comparison on the map.
+      const [singleEstimate, dualEstimate] = await Promise.all([
+        runEstimate('single'),
+        runEstimate('dual'),
+      ]);
 
-      const data = await response.json();
-
-     if (!response.ok) {
-  const detail = Array.isArray(data.detail)
-    ? data.detail
-        .map((item) => {
-          const field = Array.isArray(item.loc)
-            ? item.loc.slice(1).join('.')
-            : 'input';
-
-          return `${field}: ${item.msg}`;
-        })
-        .join(' • ')
-    : typeof data.detail === 'object'
-      ? JSON.stringify(data.detail)
-      : data.detail;
-
-  throw new Error(
-    detail || `Threat estimation failed (${response.status}).`
-  );
-}
-
-      console.log('ESTIMATE RESPONSE:', data);
+      const selected = scenario.facility.configuration === 'single_tank'
+        ? singleEstimate
+        : dualEstimate;
 
       navigate('/results', {
         state: {
           scenario,
-          estimate: data,
+          estimate: selected,
+          comparison: {
+            single: singleEstimate,
+            dual: dualEstimate,
+          },
         },
       });
     } catch (err) {
       console.error('ESTIMATE ERROR:', err);
-      setError(
-        err.message || 'Unable to connect to backend.'
-      );
+      setError(err.message || 'Unable to connect to backend.');
       setIsCalculating(false);
     }
   };
