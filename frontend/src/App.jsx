@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Configure from './pages/Configure';
 import Results from './pages/Results';
+import PostBlast from './pages/PostBlast';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/configure" element={<Configure />} />
             <Route path="/results" element={<Results />} />
+            <Route path="/post-blast" element={<PostBlast />} />
           </Routes>
         </main>
       </div>

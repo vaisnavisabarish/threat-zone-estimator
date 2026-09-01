@@ -25,69 +25,9 @@ L.Icon.Default.mergeOptions({
 
 const defaultCenter = [13.0827, 80.2707];
 
-// Temporary mock hazard zones.
-// Later, your backend teammate's GeoJSON will replace this.
 const mockHazardZones = {
   type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'moderate',
-        label: 'Moderate Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2670, 13.0860],
-          [80.2780, 13.0860],
-          [80.2810, 13.0790],
-          [80.2780, 13.0740],
-          [80.2670, 13.0740],
-          [80.2640, 13.0790],
-          [80.2670, 13.0860],
-        ]],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'high',
-        label: 'High Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2690, 13.0835],
-          [80.2760, 13.0835],
-          [80.2780, 13.0790],
-          [80.2760, 13.0760],
-          [80.2690, 13.0760],
-          [80.2670, 13.0790],
-          [80.2690, 13.0835],
-        ]],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'critical',
-        label: 'Critical Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2710, 13.0815],
-          [80.2750, 13.0815],
-          [80.2760, 13.0790],
-          [80.2740, 13.0770],
-          [80.2710, 13.0770],
-          [80.2700, 13.0790],
-          [80.2710, 13.0815],
-        ]],
-      },
-    },
-  ],
+  features: [],
 };
 
 function getZoneStyle(feature) {
@@ -121,7 +61,6 @@ function getZoneStyle(feature) {
 
 function WindArrow({ direction = 135 }) {
   const map = useMap();
-
   const center = map.getCenter();
 
   const arrowIcon = L.divIcon({
@@ -154,11 +93,25 @@ export default function MapView({
   facilityPosition = defaultCenter,
   hazardGeoJson = mockHazardZones,
   windDirection = 135,
+  stagingPoint = null,
+  stagingNote = null,
+  geoJsonKey = 'hazard-zones',
 }) {
+  const resolvedCenter = Array.isArray(center) && center.length === 2 ? center : defaultCenter;
+  const resolvedFacilityPosition = Array.isArray(facilityPosition) && facilityPosition.length === 2
+    ? facilityPosition
+    : defaultCenter;
+
+  const stagingPosition = Array.isArray(stagingPoint?.coordinates)
+    && stagingPoint.coordinates.length === 2
+    ? [stagingPoint.coordinates[1], stagingPoint.coordinates[0]]
+    : null;
+
   return (
     <div className="map-wrapper">
       <MapContainer
-        center={center}
+        key={resolvedCenter.join(',')}
+        center={resolvedCenter}
         zoom={zoom}
         scrollWheelZoom
         className="threat-map"
@@ -168,24 +121,35 @@ export default function MapView({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <Marker position={facilityPosition}>
-          <Popup>
-            <strong>Facility</strong>
-            <br />
-            Threat-zone source
-          </Popup>
-        </Marker>
+        {resolvedFacilityPosition && (
+          <Marker position={resolvedFacilityPosition}>
+            <Popup>
+              <strong>Incident</strong>
+              <br />
+              Threat-zone source
+            </Popup>
+          </Marker>
+        )}
 
         {hazardGeoJson && (
           <GeoJSON
+            key={geoJsonKey}
             data={hazardGeoJson}
             style={getZoneStyle}
             onEachFeature={(feature, layer) => {
-              layer.bindPopup(
-                `<strong>${feature.properties.label}</strong>`
-              );
+              layer.bindPopup(featurePopup(feature));
             }}
           />
+        )}
+
+        {stagingPosition && (
+          <Marker position={stagingPosition}>
+            <Popup>
+              <strong>Upwind visualization reference</strong>
+              <br />
+              {stagingNote ?? 'Visualization reference only; not a validated safe staging location.'}
+            </Popup>
+          </Marker>
         )}
 
         <WindArrow direction={windDirection} />
@@ -215,4 +179,28 @@ export default function MapView({
       </div>
     </div>
   );
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function featurePopup(feature) {
+  const properties = feature?.properties ?? {};
+  const lines = [];
+  const heading = properties.label ?? properties.severity ?? 'Hazard zone';
+  if (heading) lines.push(`<strong>${escapeHtml(heading)}</strong>`);
+  if (properties.intensity != null) {
+    const unit = properties.unit ? ` ${escapeHtml(properties.unit)}` : '';
+    lines.push(`${escapeHtml(properties.intensity)}${unit}`);
+  }
+  if (properties.event_phase) lines.push(`Phase: ${escapeHtml(properties.event_phase)}`);
+  if (properties.time_offset_min != null) lines.push(`T + ${escapeHtml(properties.time_offset_min)} minutes`);
+  if (properties.severity) lines.push(`Severity: ${escapeHtml(properties.severity)}`);
+  return lines.join('<br />') || 'Hazard zone';
 }

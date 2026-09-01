@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -17,6 +17,18 @@ export default function Home() {
     "CALIBRATING WIND_VECTORS... OK",
     "THERMAVECTOR_ESTIMATOR_ONLINE."
   ];
+
+  const startBootText = useCallback(() => {
+    let currentLine = 0;
+    const bootInterval = setInterval(() => {
+      if (currentLine < bootSequence.length) {
+        setBootText((prev) => prev + (prev ? '\n' : '') + bootSequence[currentLine]);
+        currentLine++;
+      } else {
+        clearInterval(bootInterval);
+      }
+    }, 300);
+  }, []);
 
   // Mouse Follower Effect & Perfect 3D Tracking
   useEffect(() => {
@@ -71,18 +83,18 @@ export default function Home() {
     }
     */
 
-    setIntroPhase('eyes'); 
+    setIntroPhase('eyes');
     // sessionStorage.setItem('seenThermavectorIntro', 'true');
-    
+
     const fireTimer = setTimeout(() => setIntroPhase('fire'), 600);
     const zoomTimer = setTimeout(() => setIntroPhase('zoom'), 1500);
-    
+
     const revealTimer = setTimeout(() => {
       setIntroPhase('reveal');
-      setMounted(true); 
+      setMounted(true);
       startBootText();
     }, 2700);
-    
+
     const doneTimer = setTimeout(() => setIntroPhase('done'), 4000);
 
     return () => {
@@ -91,19 +103,7 @@ export default function Home() {
       clearTimeout(revealTimer);
       clearTimeout(doneTimer);
     };
-  }, []);
-
-  const startBootText = () => {
-    let currentLine = 0;
-    const bootInterval = setInterval(() => {
-      if (currentLine < bootSequence.length) {
-        setBootText((prev) => prev + (prev ? '\n' : '') + bootSequence[currentLine]);
-        currentLine++;
-      } else {
-        clearInterval(bootInterval);
-      }
-    }, 300);
-  };
+  }, [startBootText]);
 
   return (
     <>
@@ -270,6 +270,16 @@ export default function Home() {
                   <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </span>
+            </button>
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/post-blast')}
+              className="relative z-10 inline-flex items-center justify-center px-8 py-3 font-bold text-slate-100 transition-all duration-300 border border-slate-600 bg-slate-900/80 hover:border-orange-500 hover:text-orange-300 hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] rounded-lg uppercase tracking-[0.16em]"
+            >
+              Post-Blast Analysis
             </button>
           </div>
 

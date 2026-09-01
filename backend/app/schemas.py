@@ -35,3 +35,28 @@ class EstimateResponse(BaseModel):
     metadata: dict[str, Any]
     lower_hazard_approach_direction: str
     disclaimer: str
+
+
+class PostBlastRequest(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    wind_speed_m_s: float = Field(ge=0, le=75)
+    wind_direction_deg: float = Field(ge=0, lt=360)
+    configuration: FacilityConfiguration = FacilityConfiguration.single
+    tank_diameter_m: float = Field(default=20, gt=0, le=200)
+    tank_height_m: float = Field(default=15, gt=0, le=200)
+    fuel_mass_kg: float = Field(default=50_000, gt=0, le=10_000_000)
+    time_offset_min: int = Field(ge=0, le=120)
+
+
+class PostBlastResponse(BaseModel):
+    event_phase: str
+    time_offset_min: int
+    incident: dict[str, float]
+    wind: dict[str, Any]
+    facility: dict[str, Any]
+    severity_zones: list[dict[str, Any]]
+    geojson: dict[str, Any]
+    staging_point: dict[str, Any]
+    metadata: dict[str, Any]
+    disclaimer: str
