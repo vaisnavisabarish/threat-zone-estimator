@@ -27,68 +27,7 @@ const defaultCenter = [13.0827, 80.2707];
 
 // Temporary mock hazard zones.
 // Later, your backend teammate's GeoJSON will replace this.
-const mockHazardZones = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'moderate',
-        label: 'Moderate Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2670, 13.0860],
-          [80.2780, 13.0860],
-          [80.2810, 13.0790],
-          [80.2780, 13.0740],
-          [80.2670, 13.0740],
-          [80.2640, 13.0790],
-          [80.2670, 13.0860],
-        ]],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'high',
-        label: 'High Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2690, 13.0835],
-          [80.2760, 13.0835],
-          [80.2780, 13.0790],
-          [80.2760, 13.0760],
-          [80.2690, 13.0760],
-          [80.2670, 13.0790],
-          [80.2690, 13.0835],
-        ]],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {
-        severity: 'critical',
-        label: 'Critical Hazard',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [80.2710, 13.0815],
-          [80.2750, 13.0815],
-          [80.2760, 13.0790],
-          [80.2740, 13.0770],
-          [80.2710, 13.0770],
-          [80.2700, 13.0790],
-          [80.2710, 13.0815],
-        ]],
-      },
-    },
-  ],
-};
+
 
 function getZoneStyle(feature) {
   const severity = feature?.properties?.severity;
@@ -152,9 +91,9 @@ export default function MapView({
   center = defaultCenter,
   zoom = 14,
   facilityPosition = defaultCenter,
-  hazardGeoJson = mockHazardZones,
+  hazardGeoJson = null,
   windDirection = 135,
-}) {
+})  {
   return (
     <div className="map-wrapper">
       <MapContainer
@@ -176,17 +115,22 @@ export default function MapView({
           </Popup>
         </Marker>
 
-        {hazardGeoJson && (
-          <GeoJSON
-            data={hazardGeoJson}
-            style={getZoneStyle}
-            onEachFeature={(feature, layer) => {
-              layer.bindPopup(
-                `<strong>${feature.properties.label}</strong>`
-              );
-            }}
-          />
-        )}
+        {hazardGeoJson?.type === 'FeatureCollection' && (
+  <GeoJSON
+    data={hazardGeoJson}
+    style={getZoneStyle}
+    onEachFeature={(feature, layer) => {
+      const severity = feature?.properties?.severity;
+      const intensity = feature?.properties?.intensity;
+
+      layer.bindPopup(`
+        <strong>${severity ?? 'Hazard'}</strong>
+        <br />
+        Intensity: ${intensity ?? 'N/A'} kW/m²
+      `);
+    }}
+  />
+)}
 
         <WindArrow direction={windDirection} />
       </MapContainer>
