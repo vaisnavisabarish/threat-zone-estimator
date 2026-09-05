@@ -116,7 +116,7 @@ try:
     df_threat['day'] = df_threat['timestamp'].dt.day
     df_threat['hour'] = df_threat['timestamp'].dt.hour
     df_threat['minute'] = df_threat['timestamp'].dt.minute
-    X_threat = df_threat[['month', 'day', 'hour', 'minute', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa']]
+    X_threat = df_threat[['month', 'day', 'hour', 'minute', 'fuel_mass_kg', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa']]
     y_threat = df_threat['time_to_failure_min']
     model_threat = RandomForestRegressor(n_estimators=50, random_state=42).fit(X_threat, y_threat)
 except Exception as e:
@@ -403,8 +403,8 @@ def predict_scenario(req: PredictionRequest):
     
     if model_threat:
         threat_features = pd.DataFrame(
-            [[dt.month, dt.day, dt.hour, dt.minute, pred_temp, pred_wind_speed, vapor_pressure, hoop_stress]],
-            columns=['month', 'day', 'hour', 'minute', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa'],
+            [[dt.month, dt.day, dt.hour, dt.minute, req.fuel_mass_kg, pred_temp, pred_wind_speed, vapor_pressure, hoop_stress]],
+            columns=['month', 'day', 'hour', 'minute', 'fuel_mass_kg', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa'],
         )
         time_to_failure = model_threat.predict(threat_features)[0]
     else:
