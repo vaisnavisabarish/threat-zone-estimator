@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import ThreatEstimator from './pages/ThreatEstimator';
@@ -9,6 +9,7 @@ import Results from './pages/Results';
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [homeIntroShown, setHomeIntroShown] = useState(false);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950">
@@ -25,7 +26,7 @@ export default function App() {
       )}
 
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home introShown={homeIntroShown} setIntroShown={setHomeIntroShown} />} />
         <Route path="/pre-blast" element={<ThreatEstimator />} />
         <Route path="/current-blast" element={<Configure />} />
         <Route path="/post-blast" element={<PostBlastMap />} />

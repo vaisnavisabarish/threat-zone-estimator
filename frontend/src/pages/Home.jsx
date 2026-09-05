@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export default function Home() {
+export default function Home({ introShown, setIntroShown }) {
   const navigate = useNavigate();
-  const [mounted, setMounted] = useState(false);
+  const [shouldShowIntro] = useState(() => !introShown);
+  const [mounted, setMounted] = useState(!shouldShowIntro);
   const [bootText, setBootText] = useState('');
   const cursorGlowRef = useRef(null);
   const tankRef = useRef(null);
 
   // Intro Sequence State: 'pending' -> 'eyes' -> 'fire' -> 'zoom' -> 'reveal' -> 'done'
-  const [introPhase, setIntroPhase] = useState('pending');
+  const [introPhase, setIntroPhase] = useState(shouldShowIntro ? 'pending' : 'done');
 
   const bootSequence = [
     "SYS.INIT_KERNEL(0x8F)... OK",
@@ -48,6 +49,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!shouldShowIntro) return;
+
     setIntroPhase('eyes');
 
     const fireTimer = setTimeout(() => setIntroPhase('fire'), 600);
@@ -59,7 +62,10 @@ export default function Home() {
       startBootText();
     }, 2700);
 
-    const doneTimer = setTimeout(() => setIntroPhase('done'), 4000);
+    const doneTimer = setTimeout(() => {
+      setIntroPhase('done');
+      setIntroShown(true);
+    }, 4000);
 
     return () => {
       clearTimeout(fireTimer);
@@ -67,7 +73,7 @@ export default function Home() {
       clearTimeout(revealTimer);
       clearTimeout(doneTimer);
     };
-  }, []);
+  }, [setIntroShown, shouldShowIntro]);
 
   const startBootText = () => {
     let currentLine = 0;
