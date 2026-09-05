@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -7,9 +7,9 @@ export default function Home() {
   const [bootText, setBootText] = useState('');
   const cursorGlowRef = useRef(null);
   const tankRef = useRef(null);
-  
+
   // Intro Sequence State: 'pending' -> 'eyes' -> 'fire' -> 'zoom' -> 'reveal' -> 'done'
-  const [introPhase, setIntroPhase] = useState('pending'); 
+  const [introPhase, setIntroPhase] = useState('pending');
 
   const bootSequence = [
     "SYS.INIT_KERNEL(0x8F)... OK",
@@ -18,73 +18,37 @@ export default function Home() {
     "THERMAVECTOR_ESTIMATOR_ONLINE."
   ];
 
-  const startBootText = useCallback(() => {
-    let currentLine = 0;
-    const bootInterval = setInterval(() => {
-      if (currentLine < bootSequence.length) {
-        setBootText((prev) => prev + (prev ? '\n' : '') + bootSequence[currentLine]);
-        currentLine++;
-      } else {
-        clearInterval(bootInterval);
-      }
-    }, 300);
-  }, []);
-
-  // Mouse Follower Effect & Perfect 3D Tracking
+  // Mouse Follower Effect & 3D Tracking
   useEffect(() => {
     const handleMouseMove = (e) => {
-      // 1. Move the glowing pointer
       if (cursorGlowRef.current) {
         cursorGlowRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
       }
-      
-      // 2. Precisely rotate the 3D Tank to face the mouse
+
       if (tankRef.current) {
-        // Get the exact position and dimensions of the tank on the screen
         const rect = tankRef.current.getBoundingClientRect();
-        
-        // Find the true center of the tank
         const tankCenterX = rect.left + rect.width / 2;
         const tankCenterY = rect.top + rect.height / 2;
-        
-        // Calculate the distance from the mouse to the center of the tank
+
         const deltaX = e.clientX - tankCenterX;
         const deltaY = e.clientY - tankCenterY;
-        
-        // Convert distance to degrees (divide by 15 to control sensitivity)
-        // Invert deltaY so the tank tilts UP when the mouse is ABOVE it
+
         const rotateY = deltaX / 15;
-        const rotateX = -(deltaY / 15); 
-        
-        // Clamp the rotation so the tank doesn't flip backwards or break the illusion
+        const rotateX = -(deltaY / 15);
+
         const clampedRotateY = Math.max(-50, Math.min(50, rotateY));
         const clampedRotateX = Math.max(-30, Math.min(30, rotateX));
-        
-        // Apply 3D rotation safely in place
+
         tankRef.current.style.transform = `rotateX(${clampedRotateX}deg) rotateY(${clampedRotateY}deg)`;
       }
     };
-    
+
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   useEffect(() => {
-    // ==========================================
-    // 🛑 HACKATHON DEV MODE: COMMENTED OUT SKIP
-    // ==========================================
-    /*
-    const hasSeenIntro = sessionStorage.getItem('seenThermavectorIntro');
-    if (hasSeenIntro) {
-      setIntroPhase('done');
-      setMounted(true);
-      startBootText();
-      return;
-    }
-    */
-
     setIntroPhase('eyes');
-    // sessionStorage.setItem('seenThermavectorIntro', 'true');
 
     const fireTimer = setTimeout(() => setIntroPhase('fire'), 600);
     const zoomTimer = setTimeout(() => setIntroPhase('zoom'), 1500);
@@ -103,17 +67,26 @@ export default function Home() {
       clearTimeout(revealTimer);
       clearTimeout(doneTimer);
     };
-  }, [startBootText]);
+  }, []);
+
+  const startBootText = () => {
+    let currentLine = 0;
+    const bootInterval = setInterval(() => {
+      if (currentLine < bootSequence.length) {
+        setBootText((prev) => prev + (prev ? '\n' : '') + bootSequence[currentLine]);
+        currentLine++;
+      } else {
+        clearInterval(bootInterval);
+      }
+    }, 300);
+  };
 
   return (
     <>
       <style>
         {`
-          @keyframes shimmer { 100% { transform: translateX(100%); } }
           @keyframes scan { 0%, 100% { transform: translateY(-100%); opacity: 0; } 50% { transform: translateY(100vh); opacity: 1; } }
-          @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
           @keyframes scrollGrid { 0% { background-position: 0 0; } 100% { background-position: 40px 40px; } }
-          @keyframes ping-radar { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(1.5); opacity: 0; } }
           @keyframes glitch {
             0%, 100% { transform: translate(0); opacity: 1; }
             20% { transform: translate(-2px, 1px); opacity: 0.9; }
@@ -164,130 +137,59 @@ export default function Home() {
       )}
 
       {/* MAIN SCREEN */}
-      <div className="relative min-h-[85vh] flex flex-col items-center justify-center overflow-hidden rounded-xl bg-slate-950 border border-slate-900 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+      <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-slate-950 p-6 font-sans">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ef444408_1px,transparent_1px),linear-gradient(to_bottom,#ef444408_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" style={{ animation: 'scrollGrid 15s linear infinite' }}></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.12)_0%,_rgba(15,23,42,1)_70%)] pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.1)_0%,_rgba(15,23,42,1)_70%)] pointer-events-none"></div>
         <div className="absolute top-0 left-0 w-full h-[2px] bg-red-500 shadow-[0_0_20px_4px_rgba(239,68,68,0.8)] pointer-events-none z-0" style={{ animation: 'scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}></div>
         <div className="absolute inset-0 pointer-events-none bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.15),rgba(0,0,0,0.15)_1px,transparent_1px,transparent_2px)] z-50"></div>
-
-        {/* ---------------------------------------------------- */}
-        {/* ADD THIS NEW BLOCK: 3D TRACKING GAS TANK (LEFT)      */}
-        {/* ---------------------------------------------------- */}
-        <div className={`absolute left-10 xl:left-24 top-1/2 -translate-y-1/2 w-64 h-96 z-30 hidden lg:flex items-center justify-center [perspective:1000px] transition-all duration-[1500ms] ease-out ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-20'}`}>
-          <div 
-            ref={tankRef} 
-            className="relative w-36 h-[300px] transition-transform duration-75 ease-out will-change-transform transform-origin-center"
-            style={{ transformStyle: 'preserve-3d' }}
-          >
-            {/* The Tank Body (Gradients create the 3D cylinder illusion) */}
-            <div className="absolute inset-0 rounded-[50px] bg-gradient-to-r from-slate-900 via-slate-500 to-slate-950 shadow-[inset_-10px_0_30px_rgba(0,0,0,0.9),_0_20px_50px_rgba(0,0,0,0.8)] border border-slate-600/30 overflow-hidden">
-              
-              {/* Highlight reflection to make it look like shiny metal */}
-              <div className="absolute top-0 left-[20%] w-[10%] h-full bg-gradient-to-b from-white/20 to-transparent blur-sm"></div>
-
-              {/* Hazard Warning Stripes */}
-              <div className="absolute top-24 w-full h-12 bg-[repeating-linear-gradient(45deg,#ef4444,#ef4444_10px,#000_10px,#000_20px)] opacity-90 border-y-2 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]"></div>
-              
-              {/* Pressure Gauge Panel */}
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-14 h-20 bg-slate-950 rounded-md border border-slate-700 flex flex-col items-center justify-center shadow-[inset_0_0_15px_rgba(0,0,0,1)]">
-                {/* Dial */}
-                <div className="w-8 h-8 rounded-full border-2 border-slate-600 bg-slate-900 relative shadow-[inset_0_0_5px_rgba(0,0,0,1)]">
-                  <div className="absolute top-1/2 left-1/2 w-4 h-[2px] bg-red-500 origin-left -rotate-[30deg] -translate-y-1/2 drop-shadow-[0_0_2px_red]"></div>
-                </div>
-                {/* Blinking Status LED */}
-                <div className="w-2 h-2 mt-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]"></div>
-              </div>
-            </div>
-
-            {/* Ambient Background Glow behind the tank */}
-            <div className="absolute -inset-10 bg-red-600/10 blur-3xl -z-10 rounded-full animate-pulse pointer-events-none"></div>
-          </div>
-        </div>
 
         <div className="absolute top-4 left-4 z-20 text-green-500/70 font-mono text-[10px] sm:text-xs whitespace-pre-wrap leading-tight max-w-[250px] opacity-80">
           {bootText}<span className="animate-pulse">_</span>
         </div>
 
-        <div className={`relative z-10 flex flex-col items-center max-w-4xl mx-auto text-center transition-all duration-[1500ms] ease-out transform ${mounted ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 opacity-0 scale-95'}`}>
-          
-          <div className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-sm border border-red-500/50 bg-red-950/40 text-red-400 text-xs font-mono uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(239,68,68,0.3)] backdrop-blur-sm">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,1)]"></span>
-            SYS.STATUS: ARMED
+        <div className={`relative z-10 flex flex-col items-center max-w-5xl mx-auto text-center transition-all duration-[1500ms] ease-out transform ${mounted ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 opacity-0 scale-95'}`}>
+          <div className="mb-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-sm border border-red-500/50 bg-red-950/40 text-red-400 text-xs font-mono uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            SYS.STATUS: ARMED & ONLINE
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] hover:animate-[glitch_0.3s_ease-in-out]">
-            THERMA<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-red-600 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]">VECTOR</span>
-            <br />
-            <span className="text-3xl md:text-5xl text-slate-300 font-bold tracking-[0.3em] uppercase opacity-90 block mt-2">Estimator</span>
+          <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter text-white hover:animate-[glitch_0.3s_ease-in-out]">
+            THERMA<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-red-600">VECTOR</span>
+            <span className="text-xl md:text-3xl text-slate-300 font-bold tracking-[0.3em] uppercase opacity-90 block mt-1">Estimator & Command Hub</span>
           </h1>
           
-          {/* UPDATED SLEEK GLASSMORPHISM DESCRIPTION BOX */}
-          <div className="relative mb-14 max-w-3xl p-[1px] rounded-xl bg-gradient-to-r from-slate-700/80 via-slate-600/50 to-slate-700/80 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl rounded-xl"></div>
-            <p className="relative z-10 text-lg md:text-xl text-slate-300 p-5 md:p-6 text-center leading-relaxed font-light tracking-wide">
-              Wind-aware industrial hazard modeling. Instantly calculate geographic impact for 
-              <span className="text-orange-400 font-bold ml-1 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]">thermal radiation</span> and 
-              <span className="text-red-500 font-bold ml-1 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">blast overpressure</span> zones.
-            </p>
-          </div>
+          <p className="text-slate-300 text-sm md:text-base max-w-2xl font-light tracking-wide mb-10">
+            Select an operational module below to initialize meteorological hazard simulations, pre-blast structural baselines, or post-blast forensic tracking.
+          </p>
 
-          {/* UPDATED VIBRANT FEATURE CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16 w-full px-4">
-             {[
-               { name: 'Thermal Zones', icon: '🔥', style: 'border-orange-500/60 shadow-[0_0_15px_rgba(249,115,22,0.2)] hover:border-orange-400 hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] text-orange-400 hover:text-orange-300' },
-               { name: 'Blast Radii', icon: '💥', style: 'border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:border-red-400 hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] text-red-400 hover:text-red-300' },
-               { name: 'Wind Vectors', icon: '💨', style: 'border-blue-500/60 shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] text-blue-400 hover:text-blue-300' },
-               { name: 'Geo-Mapping', icon: '🗺️', style: 'border-green-500/60 shadow-[0_0_15px_rgba(34,197,94,0.2)] hover:border-green-400 hover:shadow-[0_0_30px_rgba(34,197,94,0.6)] text-green-400 hover:text-green-300' }
-             ].map((feature, i) => (
-                <div 
-                  key={i} 
-                  className={`transition-all duration-[800ms] ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-                  style={{ transitionDelay: `${800 + (i * 150)}ms` }}
-                >
-                  <div 
-                    className={`group relative bg-slate-900/90 backdrop-blur-md border p-5 rounded-lg transition-all duration-300 cursor-crosshair overflow-hidden ${feature.style}`}
-                    style={{ animation: `float ${3 + i * 0.4}s ease-in-out infinite` }}
-                  >
-                    <div className="text-4xl mb-3 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">{feature.icon}</div>
-                    <span className="text-xs font-mono font-bold uppercase tracking-[0.1em] transition-colors">{feature.name}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 w-full px-4">
+            {[
+              { id: 'pre-blast', path: '/pre-blast', title: 'Pre-Blast Planning', subtitle: 'Baseline & Risk Profiling', desc: 'Configure structural parameters & baseline vulnerability thresholds.', icon: '🛡️', badge: 'PLANNING', style: 'border-blue-500/50 hover:border-blue-400 text-blue-400' },
+              { id: 'current-blast', path: '/current-blast', title: 'Real-Time Threat', subtitle: 'Live Weather & Wind Vectors', desc: 'Active simulation tracking real-time meteorological forecasts & hoop stress.', icon: '⚡', badge: 'LIVE MONITOR', style: 'border-red-500/50 hover:border-red-400 text-red-400' },
+              { id: 'post-blast', path: '/post-blast', title: 'Post-Blast Impact', subtitle: 'Forensic Wave Propagation', desc: 'Overpressure mapping, temporal spread, and safe evacuation corridors.', icon: '💥', badge: 'FORENSIC', style: 'border-orange-500/50 hover:border-orange-400 text-orange-400' }
+            ].map((module) => (
+              <div 
+                key={module.id} 
+                onClick={() => navigate(module.path)}
+                className={`group relative bg-slate-900/90 backdrop-blur-xl border rounded-xl p-6 cursor-pointer transition-all duration-300 flex flex-col justify-between text-left ${module.style} hover:-translate-y-1`}
+              >
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-3xl p-2.5 bg-slate-800/80 rounded-lg border border-slate-700/60">{module.icon}</span>
+                    <span className="text-[9px] font-mono font-bold tracking-widest px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{module.badge}</span>
                   </div>
+                  <h3 className="text-lg font-black tracking-wide uppercase text-white mb-1 group-hover:text-red-400">{module.title}</h3>
+                  <p className="text-[11px] font-mono text-slate-400 mb-3">{module.subtitle}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed font-light mb-6">{module.desc}</p>
                 </div>
-             ))}
-          </div>
 
-          <div className={`relative group transition-all duration-1000 delay-[1400ms] ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
-            <div className="absolute inset-0 rounded-lg border-2 border-red-500/30" style={{ animation: 'ping-radar 2s cubic-bezier(0, 0, 0.2, 1) infinite' }}></div>
-            <div className="absolute inset-0 rounded-lg border-2 border-red-500/30" style={{ animation: 'ping-radar 2s cubic-bezier(0, 0, 0.2, 1) infinite 1s' }}></div>
-            
-            <button 
-              onClick={() => navigate('/configure')}
-              className="relative z-10 inline-flex items-center justify-center px-12 py-5 font-black text-white transition-all duration-300 bg-red-600 rounded-lg hover:bg-red-500 uppercase tracking-[0.2em] overflow-hidden shadow-[0_0_30px_rgba(239,68,68,0.5)] hover:shadow-[0_0_60px_rgba(239,68,68,0.9)] hover:scale-110 active:scale-95 group-hover:border group-hover:border-white/50"
-            >
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" style={{ animation: 'shimmer 2.5s infinite' }}></div>
-              <span className="relative flex items-center gap-4 text-xl md:text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-                [ INITIALIZE SCENARIO ]
-                <svg className="w-7 h-7 group-hover:translate-x-3 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-              </span>
-            </button>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white group-hover:translate-x-1.5 transition-transform pt-4 border-t border-slate-800/80">
+                  <span>Initialize Module</span>
+                  <span>→</span>
+                </div>
+              </div>
+            ))}
           </div>
-
-          <div className="mt-8 flex justify-center">
-            <button
-              type="button"
-              onClick={() => navigate('/post-blast')}
-              className="relative z-10 inline-flex items-center justify-center px-8 py-3 font-bold text-slate-100 transition-all duration-300 border border-slate-600 bg-slate-900/80 hover:border-orange-500 hover:text-orange-300 hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] rounded-lg uppercase tracking-[0.16em]"
-            >
-              Post-Blast Analysis
-            </button>
-          </div>
-
-          <div className="mt-20 text-[10px] md:text-xs font-mono text-slate-500 flex items-center gap-3 opacity-50 hover:opacity-100 transition-opacity bg-slate-950/80 px-4 py-2 border border-slate-800 backdrop-blur-sm relative z-10">
-            <span className="animate-pulse text-red-500">⚠</span> 
-            RESTRICTED SYSTEM • ENGINEERING ESTIMATES ONLY • UNAUTHORIZED ACCESS LOGGED
-          </div>
-
         </div>
       </div>
     </>
