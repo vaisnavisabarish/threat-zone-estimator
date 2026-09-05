@@ -18,7 +18,7 @@ export default function Results() {
           <p className="mb-4">No threat-estimation result is loaded.</p>
           <button
             type="button"
-            onClick={() => navigate('/configure')}
+            onClick={() => navigate('/current-blast')}
             className="px-5 py-2 rounded bg-white text-slate-950 font-bold cursor-pointer hover:bg-slate-200 transition-colors"
           >
             CREATE SCENARIO
@@ -315,7 +315,7 @@ export default function Results() {
 
           <button
             type="button"
-            onClick={() => navigate('/configure')}
+            onClick={() => navigate('/current-blast')}
             className="w-full py-3 rounded-lg bg-white text-slate-950 font-black text-xs tracking-widest hover:bg-slate-200 transition-colors cursor-pointer"
           >
             ← RUN ANOTHER SCENARIO

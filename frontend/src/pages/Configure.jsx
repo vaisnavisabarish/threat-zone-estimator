@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate} from 'react-router-dom';
 
 export default function Configure() {
   const navigate = useNavigate();
@@ -178,9 +178,6 @@ export default function Configure() {
     <div className="max-w-7xl mx-auto pb-12">
       {/* HEADER */}
       <div className="mb-8 border-b border-slate-800 pb-6">
-        <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 mb-4 text-sm uppercase tracking-wider w-max transition-colors">
-          <span>←</span> Back to Home
-        </Link>
         <h1 className="text-3xl font-black text-white tracking-wide uppercase mb-1">
           New Scenario
         </h1>
