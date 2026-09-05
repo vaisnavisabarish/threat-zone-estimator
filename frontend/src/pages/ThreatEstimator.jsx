@@ -15,10 +15,12 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function ThreatEstimatorMap() {
-  const facilityLat = 13.0827;
-  const facilityLng = 80.2707;
-
   // Interactive Control States
+  const [facilityLat, setFacilityLat] = useState(13.0827);
+  const [facilityLng, setFacilityLng] = useState(80.2707);
+  const [fuelMass, setFuelMass] = useState(14000);
+  const [tankDiameter, setTankDiameter] = useState(15);
+  const [wallThickness, setWallThickness] = useState(0.015);
   const [targetTime, setTargetTime] = useState('2026-09-02T14:30');
   const [windSpeed, setWindSpeed] = useState(8.0);
   const [windDirection, setWindDirection] = useState(135.0);
@@ -34,7 +36,6 @@ export default function ThreatEstimatorMap() {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerGroupRef = useRef(null);
-  const prevTargetTimeRef = useRef(targetTime);
 
   // Initialize Map ONCE
   useEffect(() => {
@@ -63,7 +64,32 @@ export default function ThreatEstimatorMap() {
   }, []);
 
   // Fetch from FastAPI Master ML API & Update Map Overlays
-  const updateMapData = async (isTimeChanged) => {
+  const updateMapData = async () => {
+    const values = {
+      lat: Number(facilityLat),
+      lng: Number(facilityLng),
+      fuelMass: Number(fuelMass),
+      tankDiameter: Number(tankDiameter),
+      wallThickness: Number(wallThickness),
+      windSpeed: Number(windSpeed),
+      windDirection: Number(windDirection),
+      temperature: Number(temperature),
+    };
+    const invalid = !targetTime || !Number.isFinite(Date.parse(targetTime))
+      || !Number.isFinite(values.lat) || values.lat < -90 || values.lat > 90
+      || !Number.isFinite(values.lng) || values.lng < -180 || values.lng > 180
+      || !Number.isFinite(values.fuelMass) || values.fuelMass <= 0
+      || !Number.isFinite(values.tankDiameter) || values.tankDiameter <= 0
+      || !Number.isFinite(values.wallThickness) || values.wallThickness <= 0
+      || !Number.isFinite(values.windSpeed) || values.windSpeed < 0 || values.windSpeed > 100
+      || !Number.isFinite(values.windDirection) || values.windDirection < 0 || values.windDirection >= 360
+      || !Number.isFinite(values.temperature) || values.temperature < -100 || values.temperature > 100;
+
+    if (invalid) {
+      setError('Enter valid required values within the displayed ranges before running the prediction.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -74,14 +100,14 @@ export default function ThreatEstimatorMap() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target_time: formattedTime,
-          lat: facilityLat,
-          lng: facilityLng,
-          fuel_mass_kg: 14000,
-          tank_diameter_m: 15.0,
-          wall_thickness_m: 0.015,
-          wind_speed_ms: parseFloat(windSpeed),
-          wind_direction_deg: parseFloat(windDirection),
-          temperature_c: parseFloat(temperature)
+          lat: values.lat,
+          lng: values.lng,
+          fuel_mass_kg: values.fuelMass,
+          tank_diameter_m: values.tankDiameter,
+          wall_thickness_m: values.wallThickness,
+          wind_speed_ms: values.windSpeed,
+          wind_direction_deg: values.windDirection,
+          temperature_c: values.temperature
         })
       });
 
@@ -90,19 +116,18 @@ export default function ThreatEstimatorMap() {
       const data = await response.json();
       setPredictions(data);
 
-      // Re-trigger alert modal ONLY if the date or time specifically changed
-      if (isTimeChanged) {
-        setDismissedAlert(false);
-      }
+      setDismissedAlert(false);
 
       // Render native map overlays
       if (layerGroupRef.current) {
         layerGroupRef.current.clearLayers();
 
         // Target Marker
-        L.marker([facilityLat, facilityLng])
+        L.marker([values.lat, values.lng])
           .addTo(layerGroupRef.current)
           .bindPopup("<b>Target Tank</b>");
+
+        mapInstanceRef.current.setView([values.lat, values.lng], 17);
 
         // Danger Zone Polygon
         if (data.geojson && data.geojson.danger_zone) {
@@ -117,6 +142,20 @@ export default function ThreatEstimatorMap() {
             style: { color: '#ffaa00', fillColor: '#ffaa00', fillOpacity: 0.4, weight: 2 }
           }).addTo(layerGroupRef.current);
         }
+
+        const safeRoute = data.tactical_routing?.safe_approach_route;
+        if (Array.isArray(safeRoute) && safeRoute.length > 1) {
+          L.polyline(safeRoute, {
+            color: '#22d3ee', weight: 5, opacity: 0.9, dashArray: '10 8'
+          }).addTo(layerGroupRef.current).bindPopup('Safe approach route');
+
+          const stagingPoint = data.tactical_routing?.staging_point;
+          if (Array.isArray(stagingPoint) && stagingPoint.length === 2) {
+            L.circleMarker(stagingPoint, {
+              radius: 8, color: '#22d3ee', fillColor: '#083344', fillOpacity: 1, weight: 3
+            }).addTo(layerGroupRef.current).bindPopup('Safe staging point');
+          }
+        }
       }
 
     } catch (err) {
@@ -127,16 +166,9 @@ export default function ThreatEstimatorMap() {
     }
   };
 
-  // Trigger fetch and inspect if timestamp was what altered
-  useEffect(() => {
-    const isTimeChanged = prevTargetTimeRef.current !== targetTime;
-    prevTargetTimeRef.current = targetTime;
-
-    updateMapData(isTimeChanged);
-  }, [targetTime, windSpeed, windDirection, temperature]);
-
   const timeToFailure = predictions?.threat_assessment?.time_to_failure_min ?? 'N/A';
-  const isEmergency = predictions !== null && !dismissedAlert;
+  const riskLevel = predictions?.threat_assessment?.risk_level ?? 'N/A';
+  const isEmergency = riskLevel === 'CRITICAL' && !dismissedAlert;
 
   return (
     <div className="absolute inset-0 w-screen h-screen overflow-hidden font-sans bg-slate-950">
@@ -200,10 +232,35 @@ export default function ThreatEstimatorMap() {
       )}
 
       {/* TOP CONTROLS BAR */}
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900/95 backdrop-blur-md px-8 py-4 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-wrap items-center gap-6 text-gray-200">
+      <div className="absolute top-4 left-4 right-28 z-[1000] bg-slate-900/95 backdrop-blur-md px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-wrap items-end gap-3 text-gray-200 max-h-[48vh] overflow-y-auto">
         <div className="text-sm font-black uppercase tracking-wider text-red-500 mr-2 flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
           Threat Control Hub:
+        </div>
+
+        <div className="flex flex-col w-32">
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1">Latitude</label>
+          <input type="number" min="-90" max="90" step="0.0001" value={facilityLat} onChange={(e) => setFacilityLat(e.target.value)} className="border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white font-mono" />
+        </div>
+
+        <div className="flex flex-col w-32">
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1">Longitude</label>
+          <input type="number" min="-180" max="180" step="0.0001" value={facilityLng} onChange={(e) => setFacilityLng(e.target.value)} className="border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white font-mono" />
+        </div>
+
+        <div className="flex flex-col w-32">
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1">Fuel Mass (kg)</label>
+          <input type="number" min="1" step="100" value={fuelMass} onChange={(e) => setFuelMass(e.target.value)} className="border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white font-mono" />
+        </div>
+
+        <div className="flex flex-col w-32">
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1">Tank Diameter (m)</label>
+          <input type="number" min="0.1" max="200" step="0.1" value={tankDiameter} onChange={(e) => setTankDiameter(e.target.value)} className="border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white font-mono" />
+        </div>
+
+        <div className="flex flex-col w-32">
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1">Wall Thickness (m)</label>
+          <input type="number" min="0.001" max="1" step="0.001" value={wallThickness} onChange={(e) => setWallThickness(e.target.value)} className="border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white font-mono" />
         </div>
 
         <div className="flex flex-col">
@@ -249,6 +306,15 @@ export default function ThreatEstimatorMap() {
             className="border border-slate-700 rounded-xl px-3.5 py-2 text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-red-500 font-mono shadow-inner"
           />
         </div>
+
+        <button
+          type="button"
+          onClick={updateMapData}
+          disabled={loading}
+          className="h-10 px-5 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:text-slate-400 text-white text-xs font-black uppercase tracking-wider transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {loading ? 'Calculating...' : 'Run Prediction'}
+        </button>
       </div>
 
       {/* BOTTOM METRICS & LEGEND HUD */}
@@ -265,6 +331,7 @@ export default function ThreatEstimatorMap() {
 
           {!loading && predictions && (
             <>
+              <p className="flex justify-between text-sm"><span>Risk Level:</span> <b className={riskLevel === 'CRITICAL' ? 'text-red-400' : riskLevel === 'HIGH' ? 'text-orange-400' : 'text-cyan-300'}>{riskLevel}</b></p>
               <p className="flex justify-between text-sm"><span>Model Weather:</span> <b className="text-white">{predictions.environmental_forecast.temperature_c}°C, {predictions.environmental_forecast.humidity_pct}% Hum</b></p>
               <p className="flex justify-between text-sm"><span>Active Wind:</span> <b className="text-white">{predictions.environmental_forecast.wind_speed_ms} m/s @ {predictions.environmental_forecast.wind_direction_deg}°</b></p>
               <p className="flex justify-between text-sm"><span>Internal Stress:</span> <b className="text-white">{(predictions.threat_assessment.hoop_stress_pa / 1000000).toFixed(2)} MPa</b></p>
@@ -283,6 +350,9 @@ export default function ThreatEstimatorMap() {
           </div>
           <div className="flex items-center gap-2.5">
             <span className="w-4 h-4 bg-[#ffaa00] opacity-80 rounded-md inline-block shadow-sm"></span> Injury Zone (1+ psi)
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 border-t-4 border-dashed border-cyan-400 inline-block"></span> Safe Approach
           </div>
         </div>
 

@@ -4,7 +4,9 @@ import os
 import warnings
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -19,6 +21,8 @@ from shapely.geometry import LineString, Point, Polygon
 from sklearn.ensemble import RandomForestRegressor
 
 warnings.filterwarnings('ignore')
+
+DATA_DIR = Path(__file__).resolve().parent
 
 # ==========================================
 # 1. CONSTANTS[cite: 13]
@@ -66,7 +70,7 @@ app.add_middleware(
 # ==========================================
 print("Training Weather Model (temp.csv)...")
 try:
-    temp_path = r"C:\Users\sadan\Desktop\threat-zone-estimator\scripts\temp.csv"
+    temp_path = DATA_DIR / "temp.csv"
     df_temp = pd.read_csv(temp_path, encoding='utf-8', encoding_errors='replace', on_bad_lines='skip')
     df_temp['timestamp'] = pd.to_datetime(df_temp['timestamp'])
     X_temp = pd.DataFrame({
@@ -83,7 +87,7 @@ except Exception as e:
 
 print("Training Wind Model (wind.csv)...")
 try:
-    wind_path = r"C:\Users\sadan\Desktop\threat-zone-estimator\scripts\wind.csv"
+    wind_path = DATA_DIR / "wind.csv"
     df_wind = pd.read_excel(wind_path, engine='openpyxl')
     df_wind['timestamp'] = pd.to_datetime(df_wind['timestamp'])
     X_wind = pd.DataFrame({
@@ -102,12 +106,17 @@ except Exception as e:
 
 print("Training Threat Model (tank_snapshots.csv)...")
 try:
-    threat_path = r"C:\Users\sadan\Desktop\threat-zone-estimator\scripts\tank_snapshots.csv"
+    threat_path = DATA_DIR / "tank_snapshots.csv"
     df_threat = pd.read_csv(threat_path)
+    df_threat['timestamp'] = pd.to_datetime(df_threat['timestamp'])
     A_const, B_const, C_const = 4.00272, 806.794, 259.3
     df_threat['vapor_pressure_bar'] = 10 ** (A_const - (B_const / (df_threat['temperature_c'] + C_const)))
     df_threat['hoop_stress_pa'] = (df_threat['vapor_pressure_bar'] * 100000 * (df_threat['tank_diameter_m'] / 2)) / df_threat['wall_thickness_m']
-    X_threat = df_threat[['temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa']]
+    df_threat['month'] = df_threat['timestamp'].dt.month
+    df_threat['day'] = df_threat['timestamp'].dt.day
+    df_threat['hour'] = df_threat['timestamp'].dt.hour
+    df_threat['minute'] = df_threat['timestamp'].dt.minute
+    X_threat = df_threat[['month', 'day', 'hour', 'minute', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa']]
     y_threat = df_threat['time_to_failure_min']
     model_threat = RandomForestRegressor(n_estimators=50, random_state=42).fit(X_threat, y_threat)
 except Exception as e:
@@ -149,12 +158,15 @@ class EstimateResponse(BaseModel): #[cite: 8]
     disclaimer: str
 
 class PredictionRequest(BaseModel):
-    target_time: str
-    lat: float
-    lng: float
-    fuel_mass_kg: float
-    tank_diameter_m: float = 15.0
-    wall_thickness_m: float = 0.015
+    target_time: datetime
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    fuel_mass_kg: float = Field(gt=0, le=10_000_000)
+    tank_diameter_m: float = Field(default=15.0, gt=0, le=200)
+    wall_thickness_m: float = Field(default=0.015, gt=0, le=1)
+    wind_speed_ms: float = Field(ge=0, le=100)
+    wind_direction_deg: float = Field(ge=0, lt=360)
+    temperature_c: float = Field(ge=-100, le=100)
 
 class PostBlastRequest(BaseModel):
     lat: float
@@ -371,31 +383,29 @@ def create_estimate(request: EstimateRequest) -> dict:
 
 @app.post("/api/predict-scenario")
 def predict_scenario(req: PredictionRequest):
-    dt = pd.to_datetime(req.target_time)
+    dt = req.target_time
     time_features = pd.DataFrame({'month': [dt.month], 'day': [dt.day], 'hour': [dt.hour], 'minute': [dt.minute]})
     
     if model_weather:
         weather_pred = model_weather.predict(time_features)[0]
-        pred_hum, pred_temp = weather_pred[0], weather_pred[1]
+        pred_hum = weather_pred[0]
     else:
-        pred_hum, pred_temp = 65.0, 32.0
+        pred_hum = 65.0
 
-    wind_features = time_features.copy()
-    wind_features['temperature'] = pred_temp
-    wind_features['humidity'] = pred_hum
-    
-    if model_wind:
-        wind_pred = model_wind.predict(wind_features)[0]
-        pred_wind_speed, pred_wind_deg = wind_pred[0], wind_pred[1]
-    else:
-        pred_wind_speed, pred_wind_deg = 4.5, 90.0
+    # Pre-blast planning uses the operator's measured environmental baseline.
+    pred_temp = req.temperature_c
+    pred_wind_speed = req.wind_speed_ms
+    pred_wind_deg = req.wind_direction_deg
 
     A_c, B_c, C_c = 4.00272, 806.794, 259.3
     vapor_pressure = 10 ** (A_c - (B_c / (pred_temp + C_c)))
     hoop_stress = (vapor_pressure * 100000 * (req.tank_diameter_m / 2)) / req.wall_thickness_m
     
     if model_threat:
-        threat_features = pd.DataFrame([[pred_temp, pred_wind_speed, vapor_pressure, hoop_stress]], columns=['temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa'])
+        threat_features = pd.DataFrame(
+            [[dt.month, dt.day, dt.hour, dt.minute, pred_temp, pred_wind_speed, vapor_pressure, hoop_stress]],
+            columns=['month', 'day', 'hour', 'minute', 'temperature_c', 'wind_speed_ms', 'vapor_pressure_bar', 'hoop_stress_pa'],
+        )
         time_to_failure = model_threat.predict(threat_features)[0]
     else:
         time_to_failure = 120.0
@@ -426,6 +436,9 @@ def predict_scenario(req: PredictionRequest):
     path_nodes = nx.shortest_path(G, source=(0, 0), target=(grid_size - 1, grid_size - 1), weight='weight')
     route_coords = [[nodes_dict[n][0], nodes_dict[n][1]] for n in path_nodes]
 
+    # Operational UI bands only; these are not presented as engineering standards.
+    risk_level = "CRITICAL" if time_to_failure <= 30 else "HIGH" if time_to_failure <= 60 else "ELEVATED" if time_to_failure <= 120 else "MONITORED"
+
     return {
         "environmental_forecast": {
             "temperature_c": round(pred_temp, 2),
@@ -436,7 +449,8 @@ def predict_scenario(req: PredictionRequest):
         "threat_assessment": {
             "vapor_pressure_bar": round(vapor_pressure, 2),
             "hoop_stress_pa": round(hoop_stress, 2),
-            "time_to_failure_min": round(time_to_failure, 0)
+            "time_to_failure_min": round(time_to_failure, 0),
+            "risk_level": risk_level
         },
         "geojson": {
             "danger_zone": {
